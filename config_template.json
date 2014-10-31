@@ -1,0 +1,49 @@
+# RENAME THIS FILE TO 'config.json', then remove this line
+{
+	"ichabod_instance":"Human readable, meanginful name for ichabod instance (helpful if running multiple)",
+	"splash_server":"example.com:8050",
+	"wait_time":1.5,
+	"ichabodApp_email_sender":"foo@bar.org",
+	"ichabodApp_email_recipients":[
+		"foo@bar.org"		
+	],
+	"mail_server":"mail.foo.bar",
+	"logfile":"/var/log/ichabod.log",
+	"pages":[
+		{
+			"name":"page_1",
+			"page_url":"http://foo.bar/page1",
+			"similarity_threshold":90,
+			"email_sender":"foo@bar.org",
+			"email_recipients":[
+				"bar@foo.org",
+				"bar_2@foo.org"		
+			],
+			"checks":[
+				{
+					"name":"checkHTML",					
+					"retries":3,
+					"retry_wait_seconds":20
+				}				
+			]
+		},
+		{
+			"name":"page_2",
+			"page_url":"http://foo.bar/page2",
+			"similarity_threshold":95,
+			"email_sender":"foo@bar.org",
+			"email_recipients":[
+				"bar@foo.org",
+				"bar_2@foo.org"		
+			],
+			"checks":[
+				{
+					"name":"checkHTML",					
+					"retries":3,
+					"retry_wait_seconds":20
+				}				
+			]
+		}
+	]
+	
+}
