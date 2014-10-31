@@ -210,9 +210,31 @@ if __name__ == "__main__":
 		print "ichabod needs an argument to run. Try 'calibrate' to record baseline for pages, or 'check' to runs checks."
 		exit
 	else:
-
 		# load config
-		config_dict = json.loads(open("config.json","r").read())
-		print "Config loaded."
-		action = sys.argv[1]
-		main(action)
+		try:
+			config_dict = json.loads(open("config.json","r").read())
+			print "Config loaded."
+			action = sys.argv[1]
+			main(action)
+		except Exception as e:
+			print "Could not load config.json.  Exiting."
+
+			
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
