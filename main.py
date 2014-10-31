@@ -5,25 +5,29 @@ import sys
 import datetime
 import smtplib
 import time
+import traceback
+
+# email
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
-# fuzzy matching
-from fuzzywuzzy import fuzz
-from fuzzywuzzy import process
+# internal
+from checks import Checks
 
 
-class Page:	
+class Page(Checks):	
 	'''
 	This class represents, in a Python object, the configurations set in config.json.
 	The dot notation goes one level deep, more nested values are called like normal dicts.
+
+	Inherits:
+		- analysis functions from module.class, "checks.Checks"
 	'''	
 
-	# new
+	# set level-1 attributes from config file
 	def __init__(self, configDict):
 		for k, v in configDict.items():
-			setattr(self, k, v)		
-
+			setattr(self, k, v)
 
 	# function to set default / ideal rendering
 	def calibrate(self):
@@ -43,37 +47,8 @@ class Page:
 			"name":self.name,
 			"page_url":self.page_url
 
-		}			
-		logResults(log_dict)
-
-
-	# function to render and check
-	def checkHTML(self):		
-		
-		# Download rendered HTML, check against tare version
-		page_html = requests.get("http://{splash_server}/render.html?url={page_url}&wait={wait_time}".format(splash_server=config_dict['splash_server'],page_url=self.page_url,wait_time=config_dict['wait_time'])).content
-
-		# retrieve tare HTML
-		fhand = open("output/"+self.name+"_tare.html",'r')
-		tare_html = fhand.read()
-		fhand.close()
-
-		# test
-		fuzz_ratio = fuzz.ratio(page_html,tare_html)
-		result = fuzz_ratio > self.similarity_threshold
-		print "Fuzz ratio for {name}: {ratio}.  Result is {result}".format(name=self.name,ratio=str(fuzz_ratio),result=result)		
-
-		# build and return checkHTML_result
-		checkHTML_result = {
-			"msg":"checkHTML result is: {result}".format(result=result),
-			"result":result,
-			"fuzz_ratio":fuzz_ratio,
-			"similarity_threshold":self.similarity_threshold,
-			"name":self.name,
-			"page_url":self.page_url			
 		}
-
-		return checkHTML_result
+		logResults(log_dict)
 
 
 # main function to run checks
@@ -88,7 +63,11 @@ def runChecks(page):
 		def checkLoop(attempt,phandle,check):
 
 			# run function based on check name / expecting "check_result" dictionary, with 'result' key		
-			check_result = getattr(phandle,check['name'])()
+			# pass config_dict
+			check_result = getattr(phandle,check['name'])(config_dict)
+			# add checking function name to results
+			check_result['check_name'] = check['name']
+			# add attempt number to results
 			check_result['attempt'] = attempt		
 		
 			# did not pass test
@@ -102,7 +81,7 @@ def runChecks(page):
 					print "Retrying {check_name} for {name}: attempt {attempt}".format(check_name=check['name'],name=phandle.name,attempt=attempt)
 					time.sleep(check['retry_wait_seconds'])		
 					attempt += 1
-					checkLoop(attempt,phandle,check)				
+					checkLoop(attempt,phandle,check)
 
 				else:
 					# notify admins with check msg and page details				
@@ -192,16 +171,24 @@ def main(action):
 		else:
 			print "Action '{action}' not found, try 'calibrate' to record baseline for pages, or 'check' to runs checks.".format(action=action)
 
-	except Exception as e:
-		print "ichabod failed - email sent to ichabod admins"
+	except Exception as e:	
+
+		# internal / external reporting
+		print "ichabod failed - email sent to ichabod admins"		
 		print str(e)
+		ex_type, ex, tb = sys.exc_info()
+		traceback_msg = traceback.format_exc()
+		print traceback_msg
+
+		# external
 		msg = {
 			"name":"ichabod application failure",
-			"error":str(e),
+			"error":str(e),		
+			"traceback":traceback_msg,	
 			"email_recipients":config_dict['ichabodApp_email_recipients'],
 			"email_sender":config_dict['ichabodApp_email_sender']
 		}
-		notifyAdmin(msg)
+		# notifyAdmin(msg)
 		
 
 # take command line arguments
