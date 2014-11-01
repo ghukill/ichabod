@@ -5,34 +5,44 @@ import sys
 import datetime
 import smtplib
 import time
+import traceback
+
+# email
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
-# fuzzy matching
-from fuzzywuzzy import fuzz
-from fuzzywuzzy import process
+# internal
+from checks import Checks
 
 
-class Page:	
+class Page(Checks):	
 	'''
 	This class represents, in a Python object, the configurations set in config.json.
 	The dot notation goes one level deep, more nested values are called like normal dicts.
+
+	Inherits:
+		- analysis functions from module.class, "checks.Checks"
 	'''	
 
-	# new
+	# set level-1 attributes from config file
 	def __init__(self, configDict):
 		for k, v in configDict.items():
-			setattr(self, k, v)		
-
+			setattr(self, k, v)
 
 	# function to set default / ideal rendering
 	def calibrate(self):
 
-		print "Setting calibration tare for {name}...".format(name=self.name)
+		print "Setting calibration tare for {name}".format(name=self.name)
+
+		########################################################################
+		# check: checkHTML
+		########################################################################
+		# create dictionary from check in dictionary (GOOD HOOK TO ITERATE / AUTOMATE)
+		check_dict = self.checks['checkHTML'] 
 
 		# Download rendered HTML, save to tare
 		fhand = open("output/"+self.name+"_tare.html",'w')
-		page_html = requests.get("http://{splash_server}/render.html?url={page_url}&wait={wait_time}".format(splash_server=config_dict['splash_server'],page_url=self.page_url,wait_time=config_dict['wait_time'])).content
+		page_html = requests.get("http://{splash_server}/render.html?url={page_url}&wait={wait_time}".format(splash_server=check_dict['splash_server'],page_url=self.page_url,wait_time=check_dict['wait_time'])).content
 		fhand.write(page_html)
 		fhand.close()
 		print "HTML tare written."
@@ -43,37 +53,8 @@ class Page:
 			"name":self.name,
 			"page_url":self.page_url
 
-		}			
-		logResults(log_dict)
-
-
-	# function to render and check
-	def checkHTML(self):		
-		
-		# Download rendered HTML, check against tare version
-		page_html = requests.get("http://{splash_server}/render.html?url={page_url}&wait={wait_time}".format(splash_server=config_dict['splash_server'],page_url=self.page_url,wait_time=config_dict['wait_time'])).content
-
-		# retrieve tare HTML
-		fhand = open("output/"+self.name+"_tare.html",'r')
-		tare_html = fhand.read()
-		fhand.close()
-
-		# test
-		fuzz_ratio = fuzz.ratio(page_html,tare_html)
-		result = fuzz_ratio > self.similarity_threshold
-		print "Fuzz ratio for {name}: {ratio}.  Result is {result}".format(name=self.name,ratio=str(fuzz_ratio),result=result)		
-
-		# build and return checkHTML_result
-		checkHTML_result = {
-			"msg":"checkHTML result is: {result}".format(result=result),
-			"result":result,
-			"fuzz_ratio":fuzz_ratio,
-			"similarity_threshold":self.similarity_threshold,
-			"name":self.name,
-			"page_url":self.page_url			
 		}
-
-		return checkHTML_result
+		logResults(log_dict)
 
 
 # main function to run checks
@@ -82,13 +63,16 @@ def runChecks(page):
 	phandle = Page(page)		
 
 	# run each check in checks list
-	for check in phandle.checks:
-		print "Running {check_name} for {name}".format(check_name=check['name'],name=phandle.name)
+	for check_name in phandle.checks:
+		print "Running {check_name} for {name}".format(check_name=check_name,name=phandle.name)
 		
 		def checkLoop(attempt,phandle,check):
 
 			# run function based on check name / expecting "check_result" dictionary, with 'result' key		
-			check_result = getattr(phandle,check['name'])()
+			check_result = getattr(phandle,check['name'])(check)
+			# add checking function name to results
+			check_result['check_name'] = check['name']
+			# add attempt number to results
 			check_result['attempt'] = attempt		
 		
 			# did not pass test
@@ -100,9 +84,12 @@ def runChecks(page):
 				# enter retry loop
 				if attempt < check['retry_wait_seconds']:
 					print "Retrying {check_name} for {name}: attempt {attempt}".format(check_name=check['name'],name=phandle.name,attempt=attempt)
-					time.sleep(check['retry_wait_seconds'])		
+					
+					# sleep retry_wait_seconds * attempts - log increase in time
+					time.sleep((check['retry_wait_seconds'] * attempt))
+					
 					attempt += 1
-					checkLoop(attempt,phandle,check)				
+					checkLoop(attempt,phandle,check)
 
 				else:
 					# notify admins with check msg and page details				
@@ -114,7 +101,8 @@ def runChecks(page):
 				logResults(check_result)
 
 		# run checkLoop, 1st attempt
-		checkLoop(1,phandle,check)
+		# pass check dictionary, as pushed out from checks dict with check_name as key
+		checkLoop(1,phandle,phandle.checks[check_name])
 
 
 # main function to calibrate pages
@@ -192,16 +180,24 @@ def main(action):
 		else:
 			print "Action '{action}' not found, try 'calibrate' to record baseline for pages, or 'check' to runs checks.".format(action=action)
 
-	except Exception as e:
-		print "ichabod failed - email sent to ichabod admins"
+	except Exception as e:	
+
+		# internal / external reporting
+		print "ichabod failed - email sent to ichabod admins"		
 		print str(e)
+		ex_type, ex, tb = sys.exc_info()
+		traceback_msg = traceback.format_exc()
+		print traceback_msg
+
+		# external
 		msg = {
 			"name":"ichabod application failure",
-			"error":str(e),
+			"error":str(e),		
+			"traceback":traceback_msg,	
 			"email_recipients":config_dict['ichabodApp_email_recipients'],
 			"email_sender":config_dict['ichabodApp_email_sender']
 		}
-		notifyAdmin(msg)
+		# notifyAdmin(msg)
 		
 
 # take command line arguments
@@ -210,9 +206,31 @@ if __name__ == "__main__":
 		print "ichabod needs an argument to run. Try 'calibrate' to record baseline for pages, or 'check' to runs checks."
 		exit
 	else:
-
 		# load config
-		config_dict = json.loads(open("config.json","r").read())
-		print "Config loaded."
-		action = sys.argv[1]
-		main(action)
+		try:
+			config_dict = json.loads(open("config.json","r").read())
+			print "Config loaded."
+			action = sys.argv[1]
+			main(action)
+		except Exception as e:
+			print "Could not load config.json.  Exiting."
+
+			
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

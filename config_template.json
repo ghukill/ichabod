@@ -1,8 +1,6 @@
 # RENAME THIS FILE TO 'config.json', then remove this line
 {
 	"ichabod_instance":"Human readable, meanginful name for ichabod instance (helpful if running multiple)",
-	"splash_server":"example.com:8050",
-	"wait_time":1.5,
 	"ichabodApp_email_sender":"foo@bar.org",
 	"ichabodApp_email_recipients":[
 		"foo@bar.org"		
@@ -21,7 +19,14 @@
 			],
 			"checks":[
 				{
-					"name":"checkHTML",					
+					"name":"checkHTML",
+					"splash_server":"example.com:8050",
+					"wait_time":1.5,					
+					"retries":3,
+					"retry_wait_seconds":20
+				},
+				{
+					"name":"checkTemplate",
 					"retries":3,
 					"retry_wait_seconds":20
 				}				
@@ -38,7 +43,9 @@
 			],
 			"checks":[
 				{
-					"name":"checkHTML",					
+					"name":"checkHTML",
+					"splash_server":"example.com:8050",
+					"wait_time":1.5,					
 					"retries":3,
 					"retry_wait_seconds":20
 				}				
