@@ -12,13 +12,25 @@ import time
 from fuzzywuzzy import fuzz
 from fuzzywuzzy import process
 
+'''
+DESCRIPTION: This module contains Classes for each check.  Each check Class contains, at minimum,
+a checkMain() and calibrateMain() function.  These fire with "calibrate" and "check" command line
+arguments.
+'''
+
 
 class CheckTemplate:
-	# CHECKING FUNCTION TEMPLATE
+	
+	'''
+	Check Template: skeleton of check Class.
+
+	checkMain() - description of what happens, is expected
+	calibrateMain() - description of what happens, is expected
+	'''
+
+	# checkMain()
 	def checkMain(self, phandle, check_name):
 		'''
-		template of check function
-
 		Requires config in config.json:
 		{
 			"name":"checkHTML", // name of function (REQUIRED)
@@ -36,6 +48,7 @@ class CheckTemplate:
 			"msg":"This template test performed admirably.",	
 			"result":True, # REQUIRED
 			"name":phandle.name,
+			"check_name":check_name,
 			"page_url":phandle.page_url			
 		}
 
@@ -50,6 +63,7 @@ class CheckTemplate:
 		log_dict = {
 		"msg":"CheckTemplate calibration did nothing, but finished with aplomb",
 		"name":phandle.name,
+		"check_name":check_name,
 		"page_url":phandle.page_url
 
 		}
@@ -58,11 +72,17 @@ class CheckTemplate:
 
 
 class CheckHTML:
-	# function to render page, and check saved version of HTML against current version
+	
+	'''
+	Check to render page with headless Splash server, and check saved version of HTML against current version
+
+	checkMain() - grabs current version of page, compares against tared version with fuzzy wuzzy
+	calibrateMain() - writes verion of page, at that instance, to static file for later comparison
+	'''
+
+	# checkMain
 	def checkMain(self, phandle, check_name):
 		'''
-		Uses splash server's "render.html" function, paired with fuzzy wuzzy matching.
-
 		Requires config in config.json:
 		{
 			"name":"checkHTML", // name of function
@@ -96,6 +116,7 @@ class CheckHTML:
 			"fuzz_ratio":fuzz_ratio,
 			"similarity_threshold":check_dict['similarity_threshold'],
 			"name":phandle.name,
+			"check_name":check_name,
 			"page_url":phandle.page_url			
 		}
 
@@ -121,6 +142,7 @@ class CheckHTML:
 		log_dict = {
 		"msg":"Calibration tare created",
 		"name":phandle.name,
+		"check_name":check_name,
 		"page_url":phandle.page_url
 
 		}

@@ -11,7 +11,7 @@ import traceback
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
-# internal
+# import checks module, containing all check Classes
 import checks
 
 
@@ -19,17 +19,12 @@ class Page:
 	'''
 	This class represents, in a Python object, the configurations set in config.json.
 	The dot notation goes one level deep, more nested values are called like normal dicts.
-
-	Inherits:
-		- analysis functions from module.class, "checks.Checks"
 	'''	
 
 	# set level-1 attributes from config file
 	def __init__(self, configDict):
 		for k, v in configDict.items():
-			setattr(self, k, v)
-
-		
+			setattr(self, k, v)		
 
 
 # main function to run checks
@@ -48,11 +43,8 @@ def runChecks(page):
 			chandle = getattr(checks,check_name)()
 			print "Firing",check_name,"check."
 
-			# run calibrateMain
-			check_result = chandle.checkMain(phandle,check_name)
-
-			# add checking function name to results
-			check_result['check_name'] = check['name']
+			# run checkMain
+			check_result = chandle.checkMain(phandle,check_name)			
 			# add attempt number to results
 			check_result['attempt'] = attempt		
 		
@@ -146,8 +138,7 @@ def notifyAdmin(notify_dict):
 		print "Email successfully sent to",you
 
 
-# send results to log file
-# expects dicitonary
+# send results to log file, expects dicitonary
 # adheres to: http://jsonlines.org/
 def logResults(msg):
 	fhand = open(config_dict['logfile'],"a")	
@@ -158,7 +149,7 @@ def logResults(msg):
 	fhand.close()
 
 
-# main function
+# main loop
 def main(action):
 	try:
 		if action == "calibrate":		
@@ -172,8 +163,7 @@ def main(action):
 		else:
 			print "Action '{action}' not found, try 'calibrate' to record baseline for pages, or 'check' to runs checks.".format(action=action)
 
-	except Exception as e:	
-
+	except Exception as e:
 		# internal / external reporting
 		print "ichabod failed - email sent to ichabod admins"		
 		print str(e)
@@ -189,7 +179,7 @@ def main(action):
 			"email_recipients":config_dict['ichabodApp_email_recipients'],
 			"email_sender":config_dict['ichabodApp_email_sender']
 		}
-		# notifyAdmin(msg)
+		notifyAdmin(msg)
 		
 
 # take command line arguments
