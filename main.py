@@ -12,10 +12,10 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
 # internal
-from checks import Checks
+import checks
 
 
-class Page(Checks):	
+class Page:	
 	'''
 	This class represents, in a Python object, the configurations set in config.json.
 	The dot notation goes one level deep, more nested values are called like normal dicts.
@@ -29,32 +29,7 @@ class Page(Checks):
 		for k, v in configDict.items():
 			setattr(self, k, v)
 
-	# function to set default / ideal rendering
-	def calibrate(self):
-
-		print "Setting calibration tare for {name}".format(name=self.name)
-
-		########################################################################
-		# check: checkHTML
-		########################################################################
-		# create dictionary from check in dictionary (GOOD HOOK TO ITERATE / AUTOMATE)
-		check_dict = self.checks['checkHTML'] 
-
-		# Download rendered HTML, save to tare
-		fhand = open("output/"+self.name+"_tare.html",'w')
-		page_html = requests.get("http://{splash_server}/render.html?url={page_url}&wait={wait_time}".format(splash_server=check_dict['splash_server'],page_url=self.page_url,wait_time=check_dict['wait_time'])).content
-		fhand.write(page_html)
-		fhand.close()
-		print "HTML tare written."
-
-		# log
-		log_dict = {
-			"msg":"Calibration tare created",
-			"name":self.name,
-			"page_url":self.page_url
-
-		}
-		logResults(log_dict)
+		
 
 
 # main function to run checks
@@ -68,8 +43,14 @@ def runChecks(page):
 		
 		def checkLoop(attempt,phandle,check):
 
-			# run function based on check name / expecting "check_result" dictionary, with 'result' key		
-			check_result = getattr(phandle,check['name'])(check)
+			# run function based on check name / expecting "check_result" dictionary, with 'result' key
+			# create instance of check Class
+			chandle = getattr(checks,check_name)()
+			print "Firing",check_name,"check."
+
+			# run calibrateMain
+			check_result = chandle.checkMain(phandle,check_name)
+
 			# add checking function name to results
 			check_result['check_name'] = check['name']
 			# add attempt number to results
@@ -107,8 +88,19 @@ def runChecks(page):
 
 # main function to calibrate pages
 def calibratePages(page):	
-	Page_Handle = Page(page)
-	Page_Handle.calibrate()
+	# instantiate handle for Page instance
+	phandle = Page(page)		
+
+	# run each check in checks list
+	for check_name in phandle.checks:
+
+		# create instance of check Class
+		chandle = getattr(checks,check_name)()
+		print "Firing",check_name,"calibration."
+
+		# run calibrateMain
+		check_calibration = chandle.calibrateMain(phandle,check_name)
+		logResults(check_calibration)
 
 
 def notifyAdmin(notify_dict):
