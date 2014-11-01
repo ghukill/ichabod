@@ -75,6 +75,7 @@ class Checks:
 		# test
 		fuzz_ratio = fuzz.ratio(page_html,tare_html)
 		result = fuzz_ratio > check_dict['similarity_threshold']
+
 		print "Fuzz ratio for {name}: {ratio}.  Result is {result}".format(name=self.name,ratio=str(fuzz_ratio),result=result)		
 
 		# build and return check_result
