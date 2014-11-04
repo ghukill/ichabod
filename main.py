@@ -55,7 +55,7 @@ def runChecks(page):
 				logResults(check_result)
 				
 				# enter retry loop
-				if attempt < check['retry_wait_seconds']:
+				if attempt < check['retries']:
 					print "Retrying {check_name} for {name}: attempt {attempt}".format(check_name=check['name'],name=phandle.name,attempt=attempt)
 					
 					# sleep retry_wait_seconds * attempts - log increase in time
