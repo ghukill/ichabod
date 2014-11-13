@@ -144,6 +144,7 @@ def logResults(msg):
 	fhand = open(config_dict['logfile'],"a")	
 	msg['ichabod_instance'] = config_dict['ichabod_instance']
 	msg['timestamp'] = str(datetime.datetime.now())
+	msg = json.dumps(msg)
 	log_string = str(msg)+"\n"	
 	fhand.write(log_string)
 	fhand.close()
