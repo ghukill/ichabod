@@ -34,7 +34,7 @@ def runChecks(page):
 
 	# run each check in checks list
 	for check_name in phandle.checks:
-		print "Running {check_name} for {name}".format(check_name=check_name,name=phandle.name)
+		print "\nRunning {check_name} for {name}".format(check_name=check_name,name=phandle.name)
 		
 		def checkLoop(attempt,phandle,check):
 
@@ -44,9 +44,13 @@ def runChecks(page):
 			print "Firing",check_name,"check."
 
 			# run checkMain
-			check_result = chandle.checkMain(phandle,check_name)			
+			check_result = chandle.checkMain(phandle, check_name)			
+			
 			# add attempt number to results
-			check_result['attempt'] = attempt		
+			check_result['attempt'] = attempt
+
+			# get previous result
+			prev_result = checkPrevResult(phandle.name, check_name)
 		
 			# did not pass test
 			if check_result['result'] == False:					
@@ -73,6 +77,14 @@ def runChecks(page):
 			else:
 				logResults(check_result)
 
+
+			# email All Clear if prev_result == False, current_result == True
+			if prev_result['result'] == False and check_result['result'] == True:
+				print "Things are going to be alright!  Emailing everyone to let them know."
+
+
+
+
 		# run checkLoop, 1st attempt
 		# pass check dictionary, as pushed out from checks dict with check_name as key
 		checkLoop(1,phandle,phandle.checks[check_name])
@@ -93,6 +105,21 @@ def calibratePages(page):
 		# run calibrateMain
 		check_calibration = chandle.calibrateMain(phandle,check_name)
 		logResults(check_calibration)
+
+
+def checkPrevResult(page, check_name):
+
+	# traverse logs backwards, looking for last instance of page check
+	fhand = open(config_dict['logfile'],'r')
+	rev_lines = reversed(fhand.readlines())
+	while True:
+		try:
+			ich_trans = json.loads(rev_lines.next())
+			if check_name == ich_trans['check_name'] and page == ich_trans['name']:
+				return ich_trans
+		except Exception, e:
+			print str(e)
+			return "Could not find."
 
 
 def notifyAdmin(notify_dict):
@@ -180,7 +207,7 @@ def main(action):
 			"email_recipients":config_dict['ichabodApp_email_recipients'],
 			"email_sender":config_dict['ichabodApp_email_sender']
 		}
-		notifyAdmin(msg)
+		# notifyAdmin(msg)
 		
 
 # take command line arguments
