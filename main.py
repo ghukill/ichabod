@@ -115,7 +115,11 @@ def calibratePages(page):
 def checkPrevResult(page, check_name):
 
 	# traverse logs backwards, looking for last instance of page check
-	fhand = open(config_dict['logfile'],'r')
+	try:
+		fhand = open(config_dict['logfile'],'r')
+	except:
+		print "Could not find previous log, skipping"
+		return {'result':'could not find log'}
 	rev_lines = reversed(fhand.readlines())
 	while True:
 		try:
@@ -124,7 +128,7 @@ def checkPrevResult(page, check_name):
 				return ich_trans
 		except Exception, e:
 			print str(e)
-			return "Could not find."
+			return {'result':'could not find log'}
 
 
 def notifyAdmin(notify_dict):
@@ -174,7 +178,7 @@ def notifyAdmin(notify_dict):
 # send results to log file, expects dicitonary
 # adheres to: http://jsonlines.org/
 def logResults(msg):
-	fhand = open(config_dict['logfile'],"a")	
+	fhand = open(config_dict['logfile'],"a+")	
 	msg['ichabod_instance'] = config_dict['ichabod_instance']
 	msg['timestamp'] = str(datetime.datetime.now())
 	msg = json.dumps(msg)
