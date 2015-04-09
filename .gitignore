@@ -2,6 +2,7 @@
 testing/
 ./testing/*
 scratchpad*.*
+log_config*
 
 # local config file
 config.json
