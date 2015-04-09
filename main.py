@@ -71,7 +71,9 @@ def runChecks(page):
 				else:
 					# notify admins with check msg and page details				
 					print "Max retries reached ({attempt}) for {check_name} on {name}.  Alerting.".format(check_name=check['name'],name=phandle.name,attempt=attempt)
-					notifyAdmin( dict(page.items() + check_result.items())  )
+					notify_dict = dict(page.items() + check_result.items())
+					notify_dict['alert_msg'] = "Check failed, see details below"
+					notifyAdmin( notify_dict )
 			
 			# passed test, log and move on
 			else:
@@ -80,7 +82,10 @@ def runChecks(page):
 
 			# email All Clear if prev_result == False, current_result == True
 			if prev_result['result'] == False and check_result['result'] == True:
-				print "Things are going to be alright!  Emailing everyone to let them know."
+				print "Successful check after previous failure(s), sending notification to admins."
+				notify_dict = dict(page.items() + check_result.items())
+				notify_dict['alert_msg'] = "//////////// ALL CLEAR //////////// -- Successful check after previous failures -- //////////// ALL CLEAR ////////////"
+				notifyAdmin( notify_dict )
 
 
 
@@ -145,11 +150,12 @@ def notifyAdmin(notify_dict):
 		</head>
 
 		<body>
-		<p>ichabod - alert / similarity check failed for: {notify_dict}</p>
+		<p>ichabod alert - {alert_msg}:</p>
+		<p>{notify_dict}</p>
 		</body>
 
 		</html>
-		""".format(notify_dict=notify_dict)	
+		""".format(alert_msg=notify_dict['alert_msg'], notify_dict=notify_dict)	
 
 		# Record the MIME types of both parts - text/plain and text/html.
 		part1 = MIMEText(text, 'plain')
@@ -200,14 +206,15 @@ def main(action):
 		print traceback_msg
 
 		# external
-		msg = {
+		notify_dict = {
 			"name":"ichabod application failure",
+			"alert_msg":"ichabod application failure",
 			"error":str(e),		
 			"traceback":traceback_msg,	
 			"email_recipients":config_dict['ichabodApp_email_recipients'],
 			"email_sender":config_dict['ichabodApp_email_sender']
 		}
-		# notifyAdmin(msg)
+		notifyAdmin(notify_dict)
 		
 
 # take command line arguments
