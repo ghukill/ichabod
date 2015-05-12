@@ -24,7 +24,57 @@ class Page:
 	# set level-1 attributes from config file
 	def __init__(self, configDict):
 		for k, v in configDict.items():
-			setattr(self, k, v)		
+			setattr(self, k, v)
+
+
+def checkLoop(attempt, phandle, check, check_name, page, prev_result):
+
+	# run function based on check name / expecting "check_result" dictionary, with 'result' key
+	# create instance of check Class
+	chandle = getattr(checks,check_name)()
+	print "Firing",check_name,"check."
+
+	# run checkMain
+	check_result = chandle.checkMain(phandle, check_name)			
+	
+	# add attempt number to results
+	check_result['attempt'] = attempt
+
+	# did not pass test
+	if check_result['result'] == False:
+
+		# log results always
+		logResults(check_result)
+		
+		# enter retry loop
+		if attempt < check['retries']:
+			print "Retrying {check_name} for {name}: attempt {attempt}".format(check_name=check['name'],name=phandle.name,attempt=attempt)
+			
+			# sleep retry_wait_seconds * attempts - log increase in time
+			time.sleep((check['retry_wait_seconds'] * attempt))
+			
+			attempt += 1
+			checkLoop(attempt, phandle, check, check_name, page, prev_result)
+
+		else:
+			# notify admins with check msg and page details				
+			print "Max retries reached ({attempt}) for {check_name} on {name}.  Alerting.".format(check_name=check['name'],name=phandle.name,attempt=attempt)
+			notify_dict = dict(page.items() + check_result.items())
+			notify_dict['alert_msg'] = "Check failed, see details below"
+			notifyAdmin( notify_dict )
+	
+	# passed test, log and move on
+	else:
+		logResults(check_result)
+
+
+	# email All Clear if conditions met
+	if 'result' in prev_result and prev_result['result'] == False and check_result['result'] == True:
+		print "Successful check after previous failure(s), sending notification to admins."
+		notify_dict = dict(page.items() + check_result.items())
+		notify_dict['alert_msg'] = "//////////// ALL CLEAR //////////// -- Successful check after previous failures -- //////////// ALL CLEAR ////////////"
+		notifyAdmin( notify_dict )		
+
 
 
 # main function to run checks
@@ -35,64 +85,13 @@ def runChecks(page):
 	# run each check in checks list
 	for check_name in phandle.checks:
 		print "\nRunning {check_name} for {name}".format(check_name=check_name,name=phandle.name)
-		
-		def checkLoop(attempt,phandle,check):
 
-			# run function based on check name / expecting "check_result" dictionary, with 'result' key
-			# create instance of check Class
-			chandle = getattr(checks,check_name)()
-			print "Firing",check_name,"check."
-
-			# run checkMain
-			check_result = chandle.checkMain(phandle, check_name)			
-			
-			# add attempt number to results
-			check_result['attempt'] = attempt
-
-			# get previous result
-			prev_result = checkPrevResult(phandle.name, check_name)
-		
-			# did not pass test
-			if check_result['result'] == False:					
-				
-				# log results always
-				logResults(check_result)
-				
-				# enter retry loop
-				if attempt < check['retries']:
-					print "Retrying {check_name} for {name}: attempt {attempt}".format(check_name=check['name'],name=phandle.name,attempt=attempt)
-					
-					# sleep retry_wait_seconds * attempts - log increase in time
-					time.sleep((check['retry_wait_seconds'] * attempt))
-					
-					attempt += 1
-					checkLoop(attempt,phandle,check)
-
-				else:
-					# notify admins with check msg and page details				
-					print "Max retries reached ({attempt}) for {check_name} on {name}.  Alerting.".format(check_name=check['name'],name=phandle.name,attempt=attempt)
-					notify_dict = dict(page.items() + check_result.items())
-					notify_dict['alert_msg'] = "Check failed, see details below"
-					notifyAdmin( notify_dict )
-			
-			# passed test, log and move on
-			else:
-				logResults(check_result)
-
-
-			# email All Clear if prev_result == False, current_result == True
-			if prev_result['result'] == False and check_result['result'] == True:
-				print "Successful check after previous failure(s), sending notification to admins."
-				notify_dict = dict(page.items() + check_result.items())
-				notify_dict['alert_msg'] = "//////////// ALL CLEAR //////////// -- Successful check after previous failures -- //////////// ALL CLEAR ////////////"
-				notifyAdmin( notify_dict )
-
-
-
+		# get previous result
+		prev_result = checkPrevResult(phandle.name, check_name)
 
 		# run checkLoop, 1st attempt
 		# pass check dictionary, as pushed out from checks dict with check_name as key
-		checkLoop(1,phandle,phandle.checks[check_name])
+		checkLoop(1, phandle, phandle.checks[check_name], check_name, page, prev_result)
 
 
 # main function to calibrate pages
@@ -121,14 +120,17 @@ def checkPrevResult(page, check_name):
 		print "Could not find previous log, skipping"
 		return {'result':'could not find log'}
 	rev_lines = reversed(fhand.readlines())
+	ich_trans = False
 	while True:
 		try:
 			ich_trans = json.loads(rev_lines.next())
 			if check_name == ich_trans['check_name'] and page == ich_trans['name']:
-				return ich_trans
+				return ich_trans			
 		except Exception, e:
 			print str(e)
 			return {'result':'could not find log'}
+	# else
+	return {'result':'could not find log'}
 
 
 def notifyAdmin(notify_dict):
